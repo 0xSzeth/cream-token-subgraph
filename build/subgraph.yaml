@@ -2,7 +2,7 @@ specVersion: 0.0.2
 description: Subgraph for Cream Finance's CREAM token on Ethereum Mainnet
 repository: https://github.com/0xSzeth/cream-token-subgraph
 schema:
-  file: ./schema.graphql
+  file: schema.graphql
 dataSources:
   - kind: ethereum/contract
     name: Cream
@@ -19,8 +19,8 @@ dataSources:
         - Transfer
       abis:
         - name: Cream
-          file: ./abis/Cream.json
+          file: Cream/abis/Cream.json
       eventHandlers:
         - event: Transfer(indexed address,indexed address,uint256)
           handler: handleTransfer
-      file: ./src/mapping.ts
+      file: Cream/Cream.wasm

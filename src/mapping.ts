@@ -1,73 +1,70 @@
-import { BigInt } from "@graphprotocol/graph-ts"
-import {
-  Cream,
-  Approval,
-  DelegateChanged,
-  DelegateVotesChanged,
-  Transfer
-} from "../generated/Cream/Cream"
-import { ExampleEntity } from "../generated/schema"
+import { BigDecimal, BigInt, Address } from "@graphprotocol/graph-ts"
+import { Cream, Transfer } from "../generated/Cream/Cream"
+import { CREAM, CREAMHolder } from "../generated/schema"
 
-export function handleApproval(event: Approval): void {
-  // Entities can be loaded from the store using a string ID; this ID
-  // needs to be unique across all entities of the same type
-  let entity = ExampleEntity.load(event.transaction.from.toHex())
+let CREAM_ID = '0'
+let ZERO_DEC = BigDecimal.fromString('0')
+let ZERO_ADDR = Address.fromString('0x0000000000000000000000000000000000000000')
 
-  // Entities only exist after they have been saved to the store;
-  // `null` checks allow to create entities on demand
-  if (entity == null) {
-    entity = new ExampleEntity(event.transaction.from.toHex())
-
-    // Entity fields can be set using simple assignments
-    entity.count = BigInt.fromI32(0)
+export function tenPow(exponent: number): BigInt {
+  let result = BigInt.fromI32(1)
+  for (let i = 0; i < exponent; i++) {
+    result = result.times(BigInt.fromI32(10))
   }
-
-  // BigInt and BigDecimal math are supported
-  entity.count = entity.count + BigInt.fromI32(1)
-
-  // Entity fields can be set based on event parameters
-  entity.owner = event.params.owner
-  entity.spender = event.params.spender
-
-  // Entities can be written to the store with `.save()`
-  entity.save()
-
-  // Note: If a handler doesn't require existing field values, it is faster
-  // _not_ to load the entity from the store. Instead, create it fresh with
-  // `new Entity(...)`, set the fields that should be updated and save the
-  // entity back to the store. Fields that were not set or unset remain
-  // unchanged, allowing for partial updates to be applied.
-
-  // It is also possible to access smart contracts from mappings. For
-  // example, the contract that has emitted the event can be connected to
-  // with:
-  //
-  // let contract = Contract.bind(event.address)
-  //
-  // The following functions can then be called on this contract to access
-  // state variables and other data:
-  //
-  // - contract.DELEGATION_TYPEHASH(...)
-  // - contract.DOMAIN_TYPEHASH(...)
-  // - contract.allowance(...)
-  // - contract.approve(...)
-  // - contract.balanceOf(...)
-  // - contract.checkpoints(...)
-  // - contract.decimals(...)
-  // - contract.delegates(...)
-  // - contract.getCurrentVotes(...)
-  // - contract.getPriorVotes(...)
-  // - contract.name(...)
-  // - contract.nonces(...)
-  // - contract.numCheckpoints(...)
-  // - contract.symbol(...)
-  // - contract.totalSupply(...)
-  // - contract.transfer(...)
-  // - contract.transferFrom(...)
+  return result
 }
 
-export function handleDelegateChanged(event: DelegateChanged): void {}
+export function normalize(i: BigInt, decimals: number = 18): BigDecimal {
+  return i.toBigDecimal().div(new BigDecimal(tenPow(decimals)))
+}
 
-export function handleDelegateVotesChanged(event: DelegateVotesChanged): void {}
+export function getCREAMHolder(address: Address): CREAMHolder | null {
+  if (address.equals(ZERO_ADDR)) {
+    return null
+  }
+  let entity = CREAMHolder.load(address.toHex())
+  if (entity == null) {
+    entity = new CREAMHolder(address.toHex())
+    entity.address = address.toHex()
+    entity.creamBalance = ZERO_DEC
+    entity.save()
+  }
+  return entity as CREAMHolder
+}
 
-export function handleTransfer(event: Transfer): void {}
+export function handleTransfer(event: Transfer): void {
+
+  // find CREAM entity or create it if it does not exist yet
+  let cream = CREAM.load(CREAM_ID)
+  if (cream == null) {
+    cream = new CREAM(CREAM_ID)
+    cream.totalSupply = ZERO_DEC
+  }
+  cream.save()
+
+  // update CREAM total supply on event transfer to/from zero address
+  let value = normalize(event.params.amount)
+  if (event.params.from.equals(ZERO_ADDR)) {
+    // mint
+    cream.totalSupply = cream.totalSupply.plus(value)
+  } else if (event.params.to.equals(ZERO_ADDR)) {
+    // burn
+    cream.totalSupply = cream.totalSupply.minus(value)
+  }
+  cream.save()
+
+  // update from address
+  let from = getCREAMHolder(event.params.from)
+  if (from != null) {
+    from.creamBalance = from.creamBalance.minus(value)
+    from.save()
+  }
+
+  // update to address
+  let to = getCREAMHolder(event.params.to)
+  if (to != null) {
+    to.creamBalance = to.creamBalance.plus(value)
+    to.save()
+  }
+
+}
