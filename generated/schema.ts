@@ -99,4 +99,13 @@ export class CREAMHolder extends Entity {
   set creamBalance(value: BigDecimal) {
     this.set("creamBalance", Value.fromBigDecimal(value));
   }
+
+  get iceCreamBalance(): BigDecimal {
+    let value = this.get("iceCreamBalance");
+    return value.toBigDecimal();
+  }
+
+  set iceCreamBalance(value: BigDecimal) {
+    this.set("iceCreamBalance", Value.fromBigDecimal(value));
+  }
 }

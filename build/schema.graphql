@@ -7,4 +7,5 @@ type CREAMHolder @entity {
   id: ID!
   address: String!
   creamBalance: BigDecimal!
+  iceCreamBalance: BigDecimal!
 }

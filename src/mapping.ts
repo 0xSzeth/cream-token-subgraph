@@ -1,10 +1,12 @@
 import { BigDecimal, BigInt, Address } from "@graphprotocol/graph-ts"
 import { Cream, Transfer } from "../generated/Cream/Cream"
+import { IceCream, Deposit, Withdraw } from "../generated/IceCream/IceCream"
 import { CREAM, CREAMHolder } from "../generated/schema"
 
 let CREAM_ID = '0'
 let ZERO_DEC = BigDecimal.fromString('0')
 let ZERO_ADDR = Address.fromString('0x0000000000000000000000000000000000000000')
+let ICE_CREAM_ADDRESS = Address.fromString('0x3986425b96F11972d31C78ff340908832C5c0043')
 
 export function tenPow(exponent: number): BigInt {
   let result = BigInt.fromI32(1)
@@ -27,9 +29,38 @@ export function getCREAMHolder(address: Address): CREAMHolder | null {
     entity = new CREAMHolder(address.toHex())
     entity.address = address.toHex()
     entity.creamBalance = ZERO_DEC
+    entity.iceCreamBalance = ZERO_DEC
     entity.save()
   }
   return entity as CREAMHolder
+}
+export function handleDeposit(event: Deposit): void {
+  let address = getCREAMHolder(event.params.provider)
+  let iceCreamContract = IceCream.bind(ICE_CREAM_ADDRESS)
+
+  let addressBalance = iceCreamContract.try_balanceOf(event.params.provider);
+  if (addressBalance.reverted) {
+    // do nothing
+  } else {
+    let value = addressBalance.value;
+    address.iceCreamBalance = normalize(value);
+  }
+
+  address.save()
+}
+export function handleWithdraw(event: Withdraw): void {
+  let address = getCREAMHolder(event.params.provider)
+  let iceCreamContract = IceCream.bind(ICE_CREAM_ADDRESS)
+
+  let addressBalance = iceCreamContract.try_balanceOf(event.params.provider);
+  if (addressBalance.reverted) {
+    // do nothing
+  } else {
+    let value = addressBalance.value;
+    address.iceCreamBalance = normalize(value);
+  }
+
+  address.save()
 }
 
 export function handleTransfer(event: Transfer): void {
